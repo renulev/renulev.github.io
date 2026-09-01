@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+	<title>Mustafa Al-Ameri</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 text-gray-800">
+
+<!-- Navbar -->
+<nav class="bg-gray-900 p-4 text-white">
+	<div class="mx-auto flex max-w-5xl justify-between">
+		<a href="#" class="font-bold">Mustafa Al-Ameri</a>
+
+		<div class="space-x-4">
+			<a href="#about">About</a>
+			<a href="#skills">Skills</a>
+			<a href="#projects">Projects</a>
+			<a href="#contact">Contact</a>
+		</div>
+	</div>
+</nav>
+
+<!-- Hero -->
+
+<section class="relative overflow-hidden bg-gray-900 px-6 py-24 text-center text-white">
+	<!-- WebGL Background -->
+	<canvas
+		id="hero-canvas"
+		class="absolute inset-0 h-full w-full">
+	</canvas>
+
+<!-- Gradient overlay for readability -->
+<div class="absolute inset-0 bg-gray-900/60"></div>
+
+<!-- Hero Content -->
+<div class="relative z-10">
+	<h1 class="text-4xl font-bold md:text-5xl">
+		Mustafa Al-Ameri
+	</h1>
+
+	<p class="mt-4 text-xl text-gray-300">
+		Computer Engineering Student
+	</p>
+
+	<a
+		href="#projects"
+		class="mt-6 inline-block rounded bg-blue-600 px-5 py-2 hover:bg-blue-700">
+		View Projects
+	</a>
+</div>
+
+</section>
+<script type="module">
+	import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
+
+	const canvas = document.getElementById("hero-canvas");
+	const hero = canvas.parentElement;
+
+	const scene = new THREE.Scene();
+
+	const camera = new THREE.PerspectiveCamera(
+		55,
+		hero.clientWidth / hero.clientHeight,
+		0.1,
+		100
+	);
+
+	camera.position.z = 9;
+
+	const renderer = new THREE.WebGLRenderer({
+		canvas,
+		antialias: true,
+		alpha: true
+	});
+
+	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+	renderer.setSize(hero.clientWidth, hero.clientHeight);
+	renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+	// Lighting
+	scene.add(
+		new THREE.AmbientLight(0xffffff, 1.5)
+	);
+
+	const directionalLight = new THREE.DirectionalLight(
+		0xffffff,
+		2.5
+	);
+
+	directionalLight.position.set(5, 8, 10);
+	scene.add(directionalLight);
+
+	// Instanced cubes
+	const gridSize = 9;
+	const spacing = 0.65;
+	const cubeCount = gridSize ** 3;
+
+	const geometry = new THREE.BoxGeometry(
+		0.15,
+		0.15,
+		0.15
+	);
+
+	const material = new THREE.MeshStandardMaterial({
+		color: 0x3b82f6,
+		roughness: 0.35,
+		metalness: 0.25
+	});
+
+	const cubes = new THREE.InstancedMesh(
+		geometry,
+		material,
+		cubeCount
+	);
+
+	scene.add(cubes);
+
+	const dummy = new THREE.Object3D();
+
+	// Store the original position and a unique phase
+	// for every cube.
+	const positions = new Float32Array(cubeCount * 3);
+	const phases = new Float32Array(cubeCount);
+
+	let index = 0;
+
+	for (let x = 0; x < gridSize; x++) {
+		for (let y = 0; y < gridSize; y++) {
+			for (let z = 0; z < gridSize; z++) {
+				const px =
+					(x - (gridSize - 1) / 2) * spacing;
+
+				const py =
+					(y - (gridSize - 1) / 2) * spacing;
+
+				const pz =
+					(z - (gridSize - 1) / 2) * spacing;
+
+				positions[index * 3] = px;
+				positions[index * 3 + 1] = py;
+				positions[index * 3 + 2] = pz;
+
+				// Distance from the center.
+				const distance = Math.sqrt(
+					px * px +
+					py * py +
+					pz * pz
+				);
+
+				// Use distance to create a wave moving
+				// outward from the center.
+				phases[index] = distance * 2.5;
+
+				dummy.position.set(px, py, pz);
+				dummy.scale.setScalar(1);
+
+				dummy.updateMatrix();
+
+				cubes.setMatrixAt(
+					index,
+					dummy.matrix
+				);
+
+				index++;
+			}
+		}
+	}
+
+	cubes.instanceMatrix.needsUpdate = true;
+
+	// Mouse interaction
+	const mouse = {
+		x: 0,
+		y: 0
+	};
+
+	window.addEventListener("mousemove", event => {
+		mouse.x =
+			(event.clientX / window.innerWidth) * 2 - 1;
+
+		mouse.y =
+			(event.clientY / window.innerHeight) * 2 - 1;
+	});
+
+	// Resize
+	const resize = () => {
+		const width = hero.clientWidth;
+		const height = hero.clientHeight;
+
+		camera.aspect = width / height;
+		camera.updateProjectionMatrix();
+
+		renderer.setSize(width, height);
+	};
+
+	window.addEventListener("resize", resize);
+
+	// Animation
+	const clock = new THREE.Clock();
+
+	const animate = () => {
+		const time = clock.getElapsedTime();
+
+		for (let i = 0; i < cubeCount; i++) {
+			const px = positions[i * 3];
+			const py = positions[i * 3 + 1];
+			const pz = positions[i * 3 + 2];
+
+			const distance = Math.sqrt(
+				px * px +
+				py * py +
+				pz * pz
+			);
+
+			// Radial wave.
+			const wave =
+				Math.sin(
+					time * 2.0 -
+					phases[i]
+				);
+
+			// Cubes near the wave expand.
+			const scale =
+				0.75 + Math.max(wave, 0) * 1.5;
+
+			// Push cubes slightly outward.
+			const expansion =
+				1 + Math.max(wave, 0) * 0.12;
+
+			dummy.position.set(
+				px * expansion,
+				py * expansion,
+				pz * expansion
+			);
+
+			dummy.scale.setScalar(scale);
+
+			// Individual cube rotation.
+			dummy.rotation.x =
+				time * 0.8 + i * 0.01;
+
+			dummy.rotation.y =
+				time * 0.6 + i * 0.013;
+
+			dummy.rotation.z =
+				time * 0.4 + i * 0.017;
+
+			dummy.updateMatrix();
+
+			cubes.setMatrixAt(
+				i,
+				dummy.matrix
+			);
+		}
+
+		cubes.instanceMatrix.needsUpdate = true;
+
+		// Rotate the entire structure.
+		cubes.rotation.x =
+			time * 0.12 + mouse.y * 0.15;
+
+		cubes.rotation.y =
+			time * 0.2 + mouse.x * 0.15;
+
+		cubes.rotation.z =
+			Math.sin(time * 0.15) * 0.05;
+
+		renderer.render(scene, camera);
+
+		requestAnimationFrame(animate);
+	};
+
+	animate();
+</script>
+
+<!-- About -->
+<section id="about" class="mx-auto max-w-5xl px-6 py-16">
+	<div class="grid items-center gap-8 md:grid-cols-3">
+
+		<div class="text-center">
+			<img
+				src="https://www.gravatar.com/avatar/27680a90cdb04fa1fc46acd7ac57e309?s=300"
+				alt="Mustafa Al-Ameri"
+				class="mx-auto h-48 w-48 rounded-full object-cover"
+			>
+		</div>
+
+		<div class="md:col-span-2">
+			<h2 class="mb-4 text-3xl font-bold">About Me</h2>
+
+			<p>
+				I am a computer engineering student interested in
+				software development, low-level coding, and graphics
+				programming.
+			</p>
+		</div>
+
+	</div>
+</section>
+
+<!-- Skills -->
+<section id="skills" class="bg-white px-6 py-16">
+	<div class="mx-auto max-w-5xl">
+		<h2 class="mb-8 text-3xl font-bold">Skills</h2>
+
+		<div class="flex flex-wrap gap-3">
+			<span class="rounded bg-blue-100 px-4 py-2">C/C++</span>
+			<span class="rounded bg-blue-100 px-4 py-2">Git</span>
+			<span class="rounded bg-blue-100 px-4 py-2">Unix-Like Systems</span>
+			<span class="rounded bg-blue-100 px-4 py-2">OpenGL</span>
+			<span class="rounded bg-blue-100 px-4 py-2">Vulkan</span>
+			<span class="rounded bg-blue-100 px-4 py-2">Direct3D</span>
+			<span class="rounded bg-blue-100 px-4 py-2">WebGPU (via wgpu)</span>
+		</div>
+	</div>
+</section>
+
+<!-- Projects -->
+<section id="projects" class="mx-auto max-w-5xl px-6 py-16">
+	<h2 class="mb-8 text-3xl font-bold">Projects</h2>
+
+	<div id="projects-list" class="grid gap-6 md:grid-cols-3">
+		<p>Loading projects...</p>
+	</div>
+</section>
+
+<script>
+	const githubUsername = "renulev";
+	const projectsList = document.getElementById("projects-list");
+
+	fetch(`https://api.github.com/users/${githubUsername}/repos?sort=updated&per_page=6`)
+		.then(response => response.json())
+		.then(repos => {
+			projectsList.innerHTML = repos.map(repo => `
+				<div class="rounded bg-white p-6 shadow">
+					<h3 class="text-xl font-bold">${repo.name}</h3>
+
+					<p class="mt-2 text-gray-600">
+						${repo.description || "No description available."}
+					</p>
+
+					<a
+						href="${repo.html_url}"
+						target="_blank"
+						class="mt-4 inline-block text-blue-600">
+						View on GitHub →
+					</a>
+				</div>
+			`).join("");
+		})
+		.catch(() => {
+			projectsList.innerHTML = "<p>Unable to load projects.</p>";
+		});
+</script>
+
+<!-- Contact -->
+<section id="contact" class="bg-white px-6 py-16 text-center">
+	<h2 class="text-3xl font-bold">Contact</h2>
+
+	<div class="mt-4 space-x-4">
+		<a href="https://github.com/renulev" class="text-blue-600">GitHub</a>
+	</div>
+</section>
+
+<!-- Footer -->
+<footer class="bg-gray-900 p-6 text-center text-white">
+	<p>&copy; 2026 Mustafa Al-Ameri</p>
+</footer>
+
+</body>
+</html>
