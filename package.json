@@ -1,25 +1,26 @@
 {
-  "name": "renulev.github.io",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/renulev/renulev.github.io.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/renulev/renulev.github.io/issues"
-  },
-  "homepage": "https://github.com/renulev/renulev.github.io#readme",
-  "devDependencies": {
-    "html-minifier-terser": "^7.2.0",
-    "terser": "^5.51.2"
-  }
+	"name": "renulev.github.io",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"build": "node build.js",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/renulev/renulev.github.io.git"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"type": "commonjs",
+	"bugs": {
+		"url": "https://github.com/renulev/renulev.github.io/issues"
+	},
+	"homepage": "https://github.com/renulev/renulev.github.io#readme",
+	"devDependencies": {
+		"html-minifier-terser": "^7.2.0",
+		"terser": "^5.51.2"
+	}
 }

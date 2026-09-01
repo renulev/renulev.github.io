@@ -1,131 +1,124 @@
 const fs = require("fs");
 const path = require("path");
-const { minify: minifyHtml } = require("html-minifier-terser");
-const { minify: minifyJs } = require("terser");
-const CleanCSS = require("clean-css");
+const { minify: minify_html } = require("html-minifier-terser");
+const { minify: minify_js } = require("terser");
 
-const sourceDir = path.resolve("./");
-const outputDir = path.resolve("./dist");
+const projectDir = __dirname;
+const outputDir = path.join(projectDir, "dist");
 
-function get_files(directory) {
-const files = [];
+const ignoredDirectories = new Set([
+	".git",
+	".github",
+	"node_modules",
+	"dist",
+]);
 
-```
-for (const entry of fs.readdirSync(directory, {
-	withFileTypes: true
-})) {
-	const filePath = path.join(directory, entry.name);
+const ignoredFiles = new Set([
+	"package.json",
+	"package-lock.json",
+	"build.js",
+]);
 
-	if (entry.isDirectory()) {
-		files.push(...get_files(filePath));
-	} else {
-		files.push(filePath);
-	}
-}
+async function process_file(sourcePath, outputPath) {
+	const extension = path.extname(sourcePath).toLowerCase();
 
-return files;
-```
-
-}
-
-async function build_file(sourcePath) {
-const relativePath = path.relative(
-sourceDir,
-sourcePath
-);
-
-```
-const outputPath = path.join(
-	outputDir,
-	relativePath
-);
-
-fs.mkdirSync(
-	path.dirname(outputPath),
-	{ recursive: true }
-);
-
-const source = fs.readFileSync(
-	sourcePath,
-	"utf8"
-);
-
-if (sourcePath.endsWith(".html")) {
-	const result = await minifyHtml(source, {
-		collapseWhitespace: true,
-		removeComments: true,
-		removeRedundantAttributes: true,
-		removeEmptyAttributes: true,
-		minifyCSS: true,
-		minifyJS: true
+	fs.mkdirSync(path.dirname(outputPath), {
+		recursive: true,
 	});
 
-	fs.writeFileSync(outputPath, result);
-	return;
-}
+	if (extension === ".html" || extension === ".htm") {
+		const source = fs.readFileSync(sourcePath, "utf8");
 
-if (sourcePath.endsWith(".js")) {
-	const result = await minifyJs(source);
+		const result = await minify_html(source, {
+			collapseWhitespace: true,
+			removeComments: true,
+			removeRedundantAttributes: true,
+			removeScriptTypeAttributes: true,
+			removeStyleLinkTypeAttributes: true,
+			useShortDoctype: true,
+			minifyCSS: true,
+			minifyJS: true,
+		});
 
-	fs.writeFileSync(
-		outputPath,
-		result.code
-	);
-
-	return;
-}
-
-if (sourcePath.endsWith(".css")) {
-	const result = new CleanCSS().minify(source);
-
-	if (result.errors.length > 0) {
-		throw new Error(
-			result.errors.join("\n")
-		);
+		fs.writeFileSync(outputPath, result);
+		return;
 	}
 
-	fs.writeFileSync(
-		outputPath,
-		result.styles
-	);
+	if (extension === ".js" || extension === ".mjs") {
+		const source = fs.readFileSync(sourcePath, "utf8");
+		const result = await minify_js(source);
 
-	return;
+		if (result.error) {
+			throw result.error;
+		}
+
+		fs.writeFileSync(outputPath, result.code);
+		return;
+	}
+
+	if (extension === ".css") {
+		const source = fs.readFileSync(sourcePath, "utf8");
+
+		const result = await minify_html(`<style>${source}</style>`, {
+			collapseWhitespace: true,
+			removeComments: true,
+			minifyCSS: true,
+		});
+
+		const minifiedCss = result
+			.replace(/^<style>/, "")
+			.replace(/<\/style>$/, "");
+
+		fs.writeFileSync(outputPath, minifiedCss);
+		return;
+	}
+
+	fs.copyFileSync(sourcePath, outputPath);
 }
 
-// Images, fonts, models, etc.
-fs.copyFileSync(
-	sourcePath,
-	outputPath
-);
-```
+async function process_directory(currentDir, relativeDir = "") {
+	const entries = fs.readdirSync(currentDir, {
+		withFileTypes: true,
+	});
 
+	for (const entry of entries) {
+		const sourcePath = path.join(currentDir, entry.name);
+		const relativePath = path.join(relativeDir, entry.name);
+		const outputPath = path.join(outputDir, relativePath);
+
+		if (entry.isDirectory()) {
+			if (ignoredDirectories.has(entry.name)) {
+				continue;
+			}
+
+			await process_directory(sourcePath, relativePath);
+			continue;
+		}
+
+		if (ignoredFiles.has(entry.name)) {
+			continue;
+		}
+
+		await process_file(sourcePath, outputPath);
+	}
 }
 
 async function build() {
-fs.rmSync(outputDir, {
-recursive: true,
-force: true
-});
+	fs.rmSync(outputDir, {
+		recursive: true,
+		force: true,
+	});
 
-```
-fs.mkdirSync(outputDir, {
-	recursive: true
-});
+	fs.mkdirSync(outputDir, {
+		recursive: true,
+	});
 
-const files = get_files(sourceDir);
+	await process_directory(projectDir);
 
-for (const filePath of files) {
-	await build_file(filePath);
+	console.log("Build completed.");
 }
 
-console.log(
-	`Built ${files.length} files into dist/`
-);
-```
-
-}
-
-build().catch(error => {
-console.error(error);
-process.exit(1);
+build().catch((error) => {
+	console.error(error);
+	process.exit(1);
 });
